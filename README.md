@@ -1,11 +1,14 @@
-# advent-of-code-2018-nodejs
-Node.js solutions for Advent of Code 2018
+# Advent of Code 2018  Node.js
+Node.js solutions for [Advent of Code 2018](https://adventofcode.com/)
 
-# how to run
-Execute each example with "node src/dXX".
+# How to run
+Execute each example using "node src/dXX" at the root folder.
 
-# example
-node src/d02
+# Example
+$ node src/d02
+
+```
 Answer (part II): answer_for_part_II
 Answer (part I): answer_for_part_I
 d02: 24.605ms
+```
