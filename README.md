@@ -1,5 +1,5 @@
 # Advent of Code 2018  Node.js
-Node.js solutions for [Advent of Code 2018](https://adventofcode.com/)
+Node.js solutions for [Advent of Code 2018](https://adventofcode.com/2018)
 
 # How to run
 Execute each example using "node src/dXX" at the root folder.
