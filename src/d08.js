@@ -11,6 +11,7 @@ function programReadLine(rl) {
   rl.on("close", () => {
     console.log("Answer (part I):", sumMetadata(root));
     console.log("Answer (part II):", nodeValue(root));
+    console.timeEnd("d08");
   });
 }
 
