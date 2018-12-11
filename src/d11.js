@@ -15,6 +15,7 @@ function programReadLine(rl) {
 
     let grid = createGrid(sn);
     console.log("Answer (part I):", processPart1(grid));
+    console.log("Answer (part II):", processPart2(grid));
 
     //let best = bestSquare(grid, 300);
     //console.log("Answer (part II):", best);
@@ -39,16 +40,43 @@ function processPart1(grid) {
 }
 
 function calculateSquare(grid, x, y, squareWidth) {
-  //console.log("square", x, y, squareWidth);
   let sum = 0;
   for (let dx = 0; dx < squareWidth; dx++) {
     for (let dy = 0; dy < squareWidth; dy++) {
       let cell = getCellLevel(grid, x + dx, y + dy);
-      //console.log("add", x + dx, y + dy, cell);
       sum += cell;
     }
   }
   return sum;
+}
+
+function processPart2(grid) {
+  let bestPower = null;
+  let bestCoord = null;
+  for (let x = 1; x <= GRID_SIZE; x++) {
+    for (let y = 1; y <= GRID_SIZE; y++) {
+      const maxSize = Math.min(GRID_SIZE - x + 1, GRID_SIZE - y + 1);
+      let xysum = 0;
+      for (let s = 0; s < maxSize; s++) {
+        // add new row
+        for (let dx = 0; dx < s; dx++) {
+          xysum += getCellLevel(grid, x + dx, y + s);
+        }
+        // add new column
+        for (let dy = 0; dy < s; dy++) {
+          xysum += getCellLevel(grid, x + s, y + dy);
+        }
+        // add new lower-right corner
+        xysum += getCellLevel(grid, x + s, y + s);
+
+        if (bestPower === null || xysum > bestPower) {
+          bestPower = xysum;
+          bestCoord = x + "," + y + "," + (s + 1);
+        }
+      }
+    }
+  }
+  return bestCoord;
 }
 
 function createGrid(sn) {
