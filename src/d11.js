@@ -1,6 +1,9 @@
 console.time("d11");
 const rl = require("./utils").getInputRL("d11");
 
+const GRID_SIZE = 300;
+const PART1_SQUARE_SIZE = 3;
+
 function programReadLine(rl) {
   let sn = null;
   rl.on("line", line => {
@@ -8,94 +11,70 @@ function programReadLine(rl) {
   });
 
   rl.on("close", () => {
-    let grid = createGrid(sn, 300);
-    let { x, y } = bestSquareWithSize(grid, 300, 3);
+    //sn = 18; // example
 
-    console.log("Answer (part I):", `${x},${y}`);
-    console.log("Answer (part II):");
+    let grid = createGrid(sn);
+    console.log("Answer (part I):", processPart1(grid));
+
+    //let best = bestSquare(grid, 300);
+    //console.log("Answer (part II):", best);
 
     console.timeEnd("d11");
   });
 }
 
-function createGrid(sn, size) {
-  let grid = {}; // 'x.y': power level
-  let rackID, powerLevel, tmp;
-  for (let x = 1; x <= size; x++) {
-    for (let y = 1; y <= size; y++) {
-      rackID = x + 10;
-      tmp = (rackID * y + sn) * rackID;
-      powerLevel = ((tmp % 1000) - (tmp % 100)) / 100 - 5;
-      grid[`${x},${y}`] = powerLevel;
-    }
-  }
-  return grid;
-}
-
-function bestSquareWithSize(grid, gridSize, targetSize) {
-  let maxPower = null;
-  let maxX = null;
-  let maxY = null;
-  for (let x = 1; x <= gridSize - targetSize; x++) {
-    for (let y = 1; y <= gridSize - targetSize; y++) {
-      let value = squareValue(grid, x, y, targetSize);
-      if (maxPower === null || value > maxPower) {
-        maxPower = value;
-        maxX = x;
-        maxY = y;
+function processPart1(grid) {
+  let bestPower = null;
+  let bestCoord = null;
+  for (let x = 1; x < GRID_SIZE - PART1_SQUARE_SIZE; x++) {
+    for (let y = 1; y < GRID_SIZE - PART1_SQUARE_SIZE; y++) {
+      let power = calculateSquare(grid, x, y, PART1_SQUARE_SIZE);
+      if (bestPower == null || power > bestPower) {
+        bestPower = power;
+        bestCoord = x + "," + y;
       }
     }
   }
-  return { x: maxX, y: maxY, power: maxPower };
+  return bestCoord;
 }
 
-function squareValue(grid, x, y, size) {
+function calculateSquare(grid, x, y, squareWidth) {
+  //console.log("square", x, y, squareWidth);
   let sum = 0;
-  for (let i = x; i < x + size; i++) {
-    for (let j = y; j < y + size; j++) {
-      sum += grid[`${i},${j}`];
+  for (let dx = 0; dx < squareWidth; dx++) {
+    for (let dy = 0; dy < squareWidth; dy++) {
+      let cell = getCellLevel(grid, x + dx, y + dy);
+      //console.log("add", x + dx, y + dy, cell);
+      sum += cell;
     }
   }
   return sum;
 }
 
-programReadLine(rl);
-
-/**
-const getPower = (serial, x, y) => {
-    const rackID = x + 10;
-    const power = (rackID * y + serial) * rackID;
-    const hundreds = Math.floor((power % 1000) / 100);
-    return hundreds - 5;
-};
-
-module.exports = (input) => {
-    const serial = Number(input);
-
-    let bestCoord = '';
-    let bestSum = 0;
-
-    for (let y = 1; y <= 300; y += 1) {
-        for (let x = 1; x <= 300; x += 1) {
-            const maxSize = Math.min(301 - x, 301 - y);
-            let powerSum = 0;
-            for (let s = 0; s < maxSize; s += 1) {
-                for (let dx = 0; dx < s; dx += 1) {
-                    powerSum += getPower(serial, x + dx, y + s);
-                }
-                for (let dy = 0; dy < s; dy += 1) {
-                    powerSum += getPower(serial, x + s, y + dy);
-                }
-                powerSum += getPower(serial, x + s, y + s);
-                if (powerSum > bestSum) {
-                    bestSum = powerSum;
-                    bestCoord = x + ',' + y + ',' + (s + 1);
-                }
-            }
-        }
-        console.log(y);
+function createGrid(sn) {
+  let grid = new Array(GRID_SIZE * GRID_SIZE);
+  for (let x = 0; x < GRID_SIZE; x++) {
+    for (let y = 0; y < GRID_SIZE; y++) {
+      grid[_2dto1d(GRID_SIZE, x, y)] = getPowerLevel(sn, x + 1, y + 1);
     }
+  }
+  return grid;
+}
 
-    return bestCoord;
-};
- */
+function getPowerLevel(sn, x, y) {
+  let rackID = x + 10;
+  let tmp = (rackID * y + sn) * rackID;
+  return ((tmp % 1000) - (tmp % 100)) / 100 - 5;
+}
+
+function getCellLevel(grid, x, y) {
+  let level = grid[_2dto1d(GRID_SIZE, x - 1, y - 1)];
+  return level;
+}
+
+function _2dto1d(width, x, y) {
+  // converts matrix coordinates (2d) into array coordinates (1d)
+  return width * y + x;
+}
+
+programReadLine(rl);
