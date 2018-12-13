@@ -8,5 +8,6 @@
     "day": "node index"
   },
   "author": "Alberto Bastos",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {}
 }
