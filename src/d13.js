@@ -1,239 +1,134 @@
 console.time("d13");
 const rl = require("./utils").getInputRL("d13");
 
-const TRACK_EMPTY = " "; // ' '
-const TRACK_HORIZONTAL = "-"; // '-'
-const TRACK_VERTICAL = "|"; // '|'
-const TRACK_TURN_CLOCKWISERIGHT = "\\"; // '\';
-const TRACK_TURN_CLOCKWISELEFT = "/"; // '/';
-const TRACK_INTERSECTION = "+"; // '+';
+// translations for tracks with initial cart on it
+const CART_TO_TRACK = {
+  ">": "-",
+  "<": "-",
+  "^": "|",
+  v: "|"
+};
 
-const UP = "^"; // ^
-const DOWN = "v"; // v
-const LEFT = "<"; // <
-const RIGHT = ">"; // >
-const STRAIGHT = "-";
+// x,y translation based on current direction
+const MOVEMENT_RULES = {
+  ">": { dx: +1, dy: +0 },
+  "<": { dx: -1, dy: +0 },
+  "^": { dx: +0, dy: -1 },
+  v: { dx: +0, dy: +1 }
+};
 
-const TRACKTURNS = {};
-TRACKTURNS[">\\"] = "v";
-TRACKTURNS["<\\"] = "^";
-TRACKTURNS["^\\"] = "<";
-TRACKTURNS["v\\"] = ">";
-TRACKTURNS[">/"] = "^";
-TRACKTURNS["</"] = "v";
-TRACKTURNS["^/"] = ">";
-TRACKTURNS["v/"] = "<";
+// transitions based on current direction and new track or shift
+const DIRECTION_RULES = {
+  ">-": ">",
+  "<-": "<",
+  "^|": "^",
+  "v|": "v",
+  ">/": "^",
+  "</": "v",
+  "^/": ">",
+  "v/": "<",
+  ">\\": "v",
+  "<\\": "^",
+  "^\\": "<",
+  "v\\": ">",
+  "<<": "v",
+  "<>": "^",
+  "><": "^",
+  ">>": "v",
+  "v>": "<",
+  "v<": ">",
+  "^>": ">",
+  "^<": "<",
+  ">.": ">",
+  "<.": "<",
+  "^.": "^",
+  "v.": "v"
+};
 
-const CARTTURNS = {};
-CARTTURNS["^0"] = "<";
-CARTTURNS["^2"] = ">";
-CARTTURNS["^1"] = "^";
-CARTTURNS[">0"] = "^";
-CARTTURNS[">2"] = "v";
-CARTTURNS[">1"] = ">";
-CARTTURNS["v0"] = ">";
-CARTTURNS["v2"] = "<";
-CARTTURNS["v1"] = "v";
-CARTTURNS["<0"] = "v";
-CARTTURNS["<2"] = "^";
-CARTTURNS["<1"] = "<";
-
-const TURNSLOOP = [LEFT, STRAIGHT, RIGHT];
+const INTERSECTION_SEQUENCE = ["<", ".", ">"];
 
 function programReadLine(rl) {
-  const MAP = new Array(); // two-dimensional array [y][x]
-  const CARTS = []; // { x, y, direction, nextTurn }
+  const map = new Array(); // two-dimensional array [y][x]
+  const carts = []; // { x, y, direction, nextTurn }
   rl.on("line", line => {
-    let row = line.split("").map(parseInputCell);
-    line.split("").forEach((c, index) => {
-      if (isCart(c)) {
-        CARTS.push({
-          id: CARTS.length + 1,
+    let row = line.split("").map(track => CART_TO_TRACK[track] || track);
+    line.split("").forEach((cell, index) => {
+      if (CART_TO_TRACK[cell]) {
+        carts.push({
+          id: carts.length + 1,
+          direction: cell,
+          intersections: 0,
           x: index,
-          y: MAP.length,
-          direction: parseCartDirection(c),
-          nextTurn: 0,
+          y: map.length,
           crashed: false
         });
       }
     });
-    MAP.push(row);
+    map.push(row);
   });
 
   rl.on("close", () => {
-    let result = run(JSON.parse(JSON.stringify(MAP)), JSON.parse(JSON.stringify(CARTS)));
+    let result = run(map, carts);
     console.log("Answer (part I):", result.firstCrash);
-    console.log("Answer (part II):", result.lastPosition);
+    console.log("Answer (part II):", result.lastCartPosition);
 
     console.timeEnd("d13");
   });
 }
 
 function run(map, carts) {
-  let i = 0;
   let result = {
     firstCrash: null,
-    lastPosition: null
+    lastCartPosition: null,
+    ticks: 0
   };
-  while (carts.filter(c => !c.crashed).length > 1) {
-    carts = rearrangeCarts(carts);
-    for (let i = 0; i < carts.length; i++) {
-      let cart = carts[i];
-      if (!cart.crashed) {
-        updateCart(map, cart);
-        let crash = detectCrash(carts, cart);
-        if (crash) {
-          cart.crashed = true;
-          crash.otherCart.crashed = true;
-          result.firstCrash = result.firstCrash || crash.position;
-        }
+  while (carts.length > 1) {
+    //printStatus(map, carts);
+    carts = carts.sort((cart1, cart2) =>
+      cart1.x === cart2.x ? cart1.y - cart2.y : cart1.x - cart2.x
+    );
+    carts.forEach(cart => {
+      if (cart.crashed) return;
+      let movement = MOVEMENT_RULES[cart.direction];
+      cart.x += movement.dx;
+      cart.y += movement.dy;
+      let newTrack = map[cart.y][cart.x];
+      if (newTrack === "+") {
+        newTrack =
+          INTERSECTION_SEQUENCE[
+            cart.intersections % INTERSECTION_SEQUENCE.length
+          ];
+        cart.intersections++;
       }
-    }
+      cart.direction = DIRECTION_RULES[`${cart.direction}${newTrack}`];
 
-    //printMap(map, carts);
+      let crash = carts.find(
+        other =>
+          other.id !== cart.id &&
+          !other.crashed &&
+          other.x === cart.x &&
+          other.y === cart.y
+      );
+      if (crash) {
+        result.firstCrash = result.firstCrash || { x: cart.x, y: cart.y };
+        cart.crashed = crash.crashed = true;
+      }
+    });
+    carts = carts.filter(c => !c.crashed);
+    result.ticks++;
   }
-
-  let lastCartStanding = carts.find(c => !c.crashed);
-  result.lastPosition = { x: lastCartStanding.x, y: lastCartStanding.y };
+  if (carts.length > 0) {
+    result.lastCartPosition = { x: carts[0].x, y: carts[0].y };
+  }
   return result;
 }
 
-function rearrangeCarts(carts) {
-  return carts.sort((c1, c2) => (c1.x === c2.x ? c1.y - c2.y : c1.x - c2.x));
-}
-
-function updateCart(map, cart) {
-  let nextCell;
-  // check movement
-  switch (cart.direction) {
-    case UP:
-      nextCell = { x: cart.x, y: cart.y - 1 };
-      break;
-    case DOWN:
-      nextCell = { x: cart.x, y: cart.y + 1 };
-      break;
-    case LEFT:
-      nextCell = { x: cart.x - 1, y: cart.y };
-      break;
-    case RIGHT:
-      nextCell = { x: cart.x + 1, y: cart.y };
-      break;
-    default:
-      throw new Error("updateCarts > cart > direction > " + cart.direction);
-  }
-
-  // check direction changes
-  let nextTrack = map[nextCell.y][nextCell.x];
-  switch (nextTrack) {
-    case TRACK_VERTICAL:
-    case TRACK_HORIZONTAL:
-      break; // just keep the track
-    case TRACK_INTERSECTION:
-      cart.direction = CARTTURNS[cart.direction + cart.nextTurn];
-      cart.nextTurn = (cart.nextTurn + 1) % TURNSLOOP.length;
-      break;
-    case TRACK_TURN_CLOCKWISELEFT:
-    case TRACK_TURN_CLOCKWISERIGHT:
-      cart.direction = TRACKTURNS[cart.direction + nextTrack];
-      break;
-    default:
-      throw new Error("updateCart > next cell > " + nextTrack);
-  }
-
-  //console.log(cart.x, cart.y, prevDirection, "###", nextTrack, "###", nextCell.x, nextCell.y, cart.direction);
-
-  cart.x = nextCell.x;
-  cart.y = nextCell.y;
-}
-
-function detectCrash(carts, cart) {
-  for (let i = 0; i < carts.length; i++) {
-    let otherCart = carts[i];
-    if (!otherCart.crashed && otherCart.id !== cart.id) {
-      if (otherCart.x === cart.x && otherCart.y === cart.y) {
-        return {
-          otherCart: otherCart,
-          position: { x: cart.x, y: cart.y }
-        };
-      }
-    }
-  }
-  return null;
-}
-
-function parseInputCell(cell) {
-  switch (cell) {
-    case UP:
-    case DOWN:
-      return TRACK_VERTICAL;
-    case LEFT:
-    case RIGHT:
-      return TRACK_HORIZONTAL;
-    default:
-      return cell;
-  }
-}
-
-function isCart(cell) {
-  switch (cell) {
-    case "^":
-    case "v":
-    case ">":
-    case "<":
-      return true;
-    default:
-      return false;
-  }
-}
-
-function parseCartDirection(cell) {
-  return cell;
-}
-
-function printMap(map, carts) {
-  let mapStr = map.map(row =>
-    row.map(cell => {
-      switch (cell) {
-        case TRACK_EMPTY:
-          return " ";
-        case TRACK_HORIZONTAL:
-          return "-";
-        case TRACK_VERTICAL:
-          return "|";
-        case TRACK_TURN_CLOCKWISELEFT:
-          return "/";
-        case TRACK_TURN_CLOCKWISERIGHT:
-          return "\\";
-        case TRACK_INTERSECTION:
-          return "+";
-        default:
-          throw new Error("printMap > cell > " + cell);
-      }
-    })
-  );
-
+function printStatus(map, carts) {
+  let str = JSON.parse(JSON.stringify(map));
   carts.forEach(cart => {
-    let char;
-    switch (cart.direction) {
-      case UP:
-        char = "^";
-        break;
-      case DOWN:
-        char = "v";
-        break;
-      case LEFT:
-        char = "<";
-        break;
-      case RIGHT:
-        char = ">";
-        break;
-      default:
-        throw new Error("printMap > cart direction > " + cart.direction);
-    }
-    mapStr[cart.y][cart.x] = char;
+    str[cart.y][cart.x] = cart.direction;
   });
-
-  console.log(mapStr.map(row => row.join("")).join("\n") + "\n\n");
+  console.log(str.map(row => row.join("")).join("\n") + "\n\n");
 }
 
 programReadLine(rl);
