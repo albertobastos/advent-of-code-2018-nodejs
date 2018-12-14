@@ -29,7 +29,7 @@ function run(n) {
     nStr: n.toString()
   };
 
-  // keep making recipes until we have 10 recipes after the input
+  // keep making recipes until we have the solution for both problems
   let expectedRecipes = n + 10;
   while (!data.score || data.part2 < 0) {
     let toAdd = (data.recipes[data.elf1] + data.recipes[data.elf2])
