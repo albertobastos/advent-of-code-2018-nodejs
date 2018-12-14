@@ -31,7 +31,7 @@ function run(n) {
 
   // keep making recipes until we have 10 recipes after the input
   let expectedRecipes = n + 10;
-  while (data.recipes.length < expectedRecipes || data.part2 < 0) {
+  while (!data.score || data.part2 < 0) {
     let toAdd = (data.recipes[data.elf1] + data.recipes[data.elf2])
       .toString()
       .split("")
@@ -39,6 +39,11 @@ function run(n) {
     data.recipes.push(...toAdd);
     data.elf1 = (data.elf1 + 1 + data.recipes[data.elf1]) % data.recipes.length;
     data.elf2 = (data.elf2 + 1 + data.recipes[data.elf2]) % data.recipes.length;
+
+    // check if we already reach the desired number of recipes to get the score
+    if (!data.score && data.recipes.length >= expectedRecipes) {
+      data.score = data.recipes.slice(n, n + 10).join("");
+    }
 
     // check if we found our input in the recipes list for the first time
     // optimization: we just need to look it up at the end of the recipes list, no need to indexOf of the full list each time!
@@ -54,7 +59,6 @@ function run(n) {
     //printStatus(data);
   }
 
-  data.score = data.recipes.slice(n, n + 10).join("");
   return data;
 }
 
