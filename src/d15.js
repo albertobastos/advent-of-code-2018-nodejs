@@ -1,7 +1,6 @@
 console.time("d15");
-const rl = require("./utils").getInputRL("d15ex");
+const rl = require("./utils").getInputRL("d15");
 
-const WALL = "#";
 const FREE = ".";
 const ELF = "E";
 const GOBLIN = "G";
@@ -17,27 +16,38 @@ function programReadLine(rl) {
   });
 
   rl.on("close", () => {
-    let result = run(JSON.parse(JSON.stringify(MAP)));
-    console.log("Answer (part I):", result.part1);
-    console.log("Answer (part II):", result.part2);
-
+    console.log(
+      "Answer (part I):",
+      run(JSON.parse(JSON.stringify(MAP))).outcome
+    );
+    let part2result = null;
+    let elfAttack = DEFAULT_ATTACK;
+    do {
+      elfAttack++;
+      part2result = run(JSON.parse(JSON.stringify(MAP)), elfAttack, true);
+    } while (!part2result); // keep trying until combat hasn't been aborted
+    console.log(
+      "Answer (part II):",
+      part2result.outcome,
+      "(INCORRECT, expected 54096 with elf attack 15)"
+    );
     console.timeEnd("d15");
   });
 }
 
-function run(map) {
-  let players = initPlayers(map);
+function run(map, elfAttack = DEFAULT_ATTACK, abortIfElfDies = false) {
+  let players = initPlayers(map, elfAttack);
   let data = {
     map: map,
     players: players,
     round: 0,
-    part1: null,
-    part2: null
+    outcome: null,
+    elfAttack: elfAttack
   };
 
   round: while (true) {
     players = players.sort((p1, p2) =>
-      p1.y === p2.y ? p1.x - p2.x : p1.y - p2.y
+      p1.pos.y === p2.pos.y ? p1.pos.x - p2.pos.x : p1.pos.y - p2.pos.y
     );
     for (let i = 0; i < players.length; i++) {
       player = players[i];
@@ -48,12 +58,13 @@ function run(map) {
         }
 
         let enemy = findEnemyToAttack(player, players);
-        let next = findNextStepToClosestEnemy(player, players, map);
+        //let next = findNextStepToClosestEnemy(player, players, map);
+        let next = enemy ? null : findNextMovement(player, map);
         if (!enemy && next) {
-          map[player.y][player.x] = FREE;
-          player.x = next.x;
-          player.y = next.y;
-          map[player.y][player.x] = player.type;
+          map[player.pos.y][player.pos.x] = FREE;
+          player.pos.x = next.x;
+          player.pos.y = next.y;
+          map[player.pos.y][player.pos.x] = player.type;
 
           // once we moved, check again if an enemy is at range
           enemy = findEnemyToAttack(player, players);
@@ -64,7 +75,8 @@ function run(map) {
           if (enemy.hp < 1) {
             // we killed him! mark him as dead
             enemy.alive = false;
-            map[enemy.y][enemy.x] = FREE;
+            map[enemy.pos.y][enemy.pos.x] = FREE;
+            if (enemy.type === ELF && abortIfElfDies) return null;
           }
         }
       }
@@ -75,7 +87,7 @@ function run(map) {
   }
 
   // outcome = completed rounds * remaining hit points
-  data.part1 =
+  data.outcome =
     data.round *
     players
       .filter(p => p.alive)
@@ -85,7 +97,7 @@ function run(map) {
   return data;
 }
 
-function initPlayers(map) {
+function initPlayers(map, elfAttack = DEFAULT_ATTACK) {
   let players = [];
   map.forEach((row, y) => {
     row.forEach((cell, x) => {
@@ -93,10 +105,9 @@ function initPlayers(map) {
         players.push({
           type: cell,
           hp: DEFAULT_HP,
-          attack: DEFAULT_ATTACK,
+          attack: cell === ELF ? elfAttack : DEFAULT_ATTACK,
           alive: true,
-          x: x,
-          y: y
+          pos: { x, y }
         });
       }
     });
@@ -107,15 +118,16 @@ function initPlayers(map) {
 function findEnemyToAttack(player, allPlayers) {
   return (
     allPlayers
-      // discard allieds and dead players (that will already discard himself)
+      // discard allies and dead players (that will already discard himself)
       .filter(p => p.type !== player.type && p.alive)
       // get only those within range
       .filter(
         p =>
-          (Math.abs(p.x - player.x) === 1 && p.y === player.y) ||
-          (Math.abs(p.y - player.y) === 1 && p.x === player.x)
+          (Math.abs(p.pos.x - player.pos.x) === 1 &&
+            p.pos.y === player.pos.y) ||
+          (Math.abs(p.pos.y - player.pos.y) === 1 && p.pos.x === player.pos.x)
       )
-      // in case of many candidates, find the weakest (in case of many weakest, keep the first one left-to-right top-to-bottom)
+      // find the weakest one (in tie, the first found in order prevails)
       .reduce(
         (weakest, curr) =>
           weakest === null || weakest.hp > curr.hp ? curr : weakest,
@@ -124,65 +136,46 @@ function findEnemyToAttack(player, allPlayers) {
   );
 }
 
-function findNextStepToClosestEnemy(player, allPlayers, map) {
-  // for each alive enemy, get the real distance to the free path
-  let aliveEnemies = allPlayers.filter(p => p.alive && p.type !== player.type);
+function findNextMovement(player, map) {
+  let rivalType = player.type === ELF ? GOBLIN : ELF;
+  let paths = [[{ x: player.pos.x, y: player.pos.y }]];
+  let visited = {};
+  visited[`${player.pos.x},${player.pos.y}`] = true;
 
-  let closestEnemy = (closestPath = null);
-  aliveEnemies.forEach(p => {
-    let path = getAvailablePath(
-      { x: player.x, y: player.y },
-      { x: p.x, y: p.y },
-      map
-    );
-    if (path && (closestEnemy === null || closestPath.length > path.length)) {
-      [closestEnemy, closestPath] = [p, path];
+  while (paths.length > 0) {
+    let newPaths = [];
+    for (let iPath = 0; iPath < paths.length; iPath++) {
+      let path = paths[iPath];
+      let pos = path[path.length - 1];
+      // for each position, check next movements (order matters!)
+      let candidates = [
+        { x: pos.x, y: pos.y - 1 },
+        { x: pos.x - 1, y: pos.y },
+        { x: pos.x + 1, y: pos.y },
+        { x: pos.x, y: pos.y + 1 }
+      ];
+
+      for (let iCand = 0; iCand < candidates.length; iCand++) {
+        let cand = candidates[iCand];
+        let cell = map[cand.y][cand.x];
+        if (cell === rivalType) {
+          // we found the closest rival!
+          // return the first step required
+          return path[1];
+        }
+
+        if (!visited[`${cand.x},${cand.y}`] && cell === FREE) {
+          // new step to add to the path
+          newPaths.push([...path, cand]);
+          visited[`${cand.x},${cand.y}`] = true; // mark it as visited so other exploring paths do not move into it
+        }
+      }
     }
-  });
 
-  return closestPath && closestPath[1]; // [0] is the current position
-}
-
-function getAvailablePath(from, to, map, visited = {}) {
-  // if they are within range, there is no path!
-  if (
-    (Math.abs(from.x - to.x) <= 1 && from.y === to.y) ||
-    (Math.abs(from.y - to.y) <= 1 && from.x === to.x)
-  ) {
-    return [from];
+    paths = newPaths;
   }
 
-  // filter where can we move without revisiting a spot
-  // order matters!
-  let nextCells = [
-    { x: from.x, y: from.y - 1 },
-    { x: from.x - 1, y: from.y },
-    { x: from.x + 1, y: from.y },
-    { x: from.x, y: from.y + 1 }
-  ]
-    // discard already visited spots
-    .filter(({ x, y }) => !visited[`${x},${y}`])
-    // discard non-free spots
-    .filter(({ x, y }) => map[y] && map[y][x] && map[y][x] === FREE);
-
-  // mark current as visited so recursive calls do not come back
-  visited[`${from.x},${from.y}`] = true;
-
-  let bestPath = nextCells
-    .map(cell => getAvailablePath(cell, to, map, { ...visited }))
-    .filter(r => r !== null)
-    .reduce(
-      (best, curr) =>
-        best === null || best.length > curr.length ? curr : best,
-      null
-    );
-
-  // add the current cell to the best path for recursion
-  if (bestPath) {
-    bestPath.splice(0, 0, { x: from.x, y: from.y });
-  }
-
-  return bestPath;
+  return null; // no paths to any enemy available
 }
 
 function printStatus(data) {
@@ -199,7 +192,7 @@ function printMap(map) {
 function printPlayers(players, onlyAlive) {
   players
     .filter(p => !onlyAlive || p.alive)
-    .forEach(p => console.log(p.type, p.x, p.y, p.hp));
+    .forEach(p => console.log(p.type, p.pos.x, p.y, p.hp));
 }
 
 programReadLine(rl);
