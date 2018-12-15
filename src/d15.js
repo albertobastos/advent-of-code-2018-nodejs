@@ -26,11 +26,7 @@ function programReadLine(rl) {
       elfAttack++;
       part2result = run(JSON.parse(JSON.stringify(MAP)), elfAttack, true);
     } while (!part2result); // keep trying until combat hasn't been aborted
-    console.log(
-      "Answer (part II):",
-      part2result.outcome,
-      "(INCORRECT, expected 54096 with elf attack 15)"
-    );
+    console.log("Answer (part II):", part2result.outcome, "(finally!)");
     console.timeEnd("d15");
   });
 }
@@ -58,7 +54,6 @@ function run(map, elfAttack = DEFAULT_ATTACK, abortIfElfDies = false) {
         }
 
         let enemy = findEnemyToAttack(player, players);
-        //let next = findNextStepToClosestEnemy(player, players, map);
         let next = enemy ? null : findNextMovement(player, players, map);
         if (!enemy && next) {
           map[player.pos.y][player.pos.x] = FREE;
@@ -137,45 +132,63 @@ function findEnemyToAttack(player, allPlayers) {
 }
 
 function findNextMovement(player, allPlayers, map) {
-  let rivalType = player.type === ELF ? GOBLIN : ELF;
-  let paths = [[{ x: player.pos.x, y: player.pos.y }]];
+  let targetKeys = {};
+  allPlayers
+    .filter(p => p.alive && p.type !== player.type)
+    .map(p => getAdjacents(p.pos).filter(pos => map[pos.y][pos.x] === FREE))
+    .reduce((acc, list) => acc.concat(...list), [])
+    .forEach(pos => (targetKeys[`${pos.x},${pos.y}`] = pos));
+
   let visited = {};
   visited[`${player.pos.x},${player.pos.y}`] = true;
 
-  while (paths.length > 0) {
+  let paths = [[player.pos]];
+  while (true) {
     let newPaths = [];
-    for (let iPath = 0; iPath < paths.length; iPath++) {
-      let path = paths[iPath];
-      let pos = path[path.length - 1];
-      // for each position, check next movements (order matters!)
-      let candidates = [
-        { x: pos.x, y: pos.y - 1 },
-        { x: pos.x - 1, y: pos.y },
-        { x: pos.x + 1, y: pos.y },
-        { x: pos.x, y: pos.y + 1 }
-      ];
-
-      for (let iCand = 0; iCand < candidates.length; iCand++) {
-        let cand = candidates[iCand];
-        let cell = map[cand.y][cand.x];
-        if (cell === rivalType) {
-          // we found the closest rival!
-          // return the first step required
-          return path[1];
+    let targetPaths = [];
+    paths.forEach(path => {
+      let adjacents = getAdjacents(path[path.length - 1]);
+      adjacents.forEach(adj => {
+        let xy = `${adj.x},${adj.y}`;
+        if (targetKeys[xy]) {
+          // found a path to a target!
+          // add it so at the end of the iteration we chose the right one based on first step order
+          targetPaths.push([...path, adj, targetKeys[xy]]);
+        } else if (!visited[xy] && map[adj.y][adj.x] === FREE) {
+          // we push the extended path for the next iteration
+          newPaths.push([...path, adj]);
         }
+        visited[xy] = true; // mark as visited so other paths ignore it
+      });
+    });
 
-        if (!visited[`${cand.x},${cand.y}`] && cell === FREE) {
-          // new step to add to the path
-          newPaths.push([...path, cand]);
-          visited[`${cand.x},${cand.y}`] = true; // mark it as visited so other exploring paths do not move into it
-        }
-      }
+    if (targetPaths.length > 0) {
+      // if we found multiple shortest paths, take the step to reach the first target according top-to-bottom/left-to-right order
+      targetPaths = targetPaths.sort((p1, p2) =>
+        p1[p1.length - 1].y === p2[p2.length - 1].y
+          ? p1[p1.length - 1].x - p2[p2.length - 1].x
+          : p1[p1.length - 1].y - p2[p2.length - 1].y
+      );
+
+      // we return the first step to take for the shortest path ([0] is the player current position)
+      return targetPaths[0][1];
     }
 
     paths = newPaths;
+    if (paths.length < 1) return null; // no reachables targets!
   }
 
-  return null; // no paths to any enemy available
+  // explode paths until one or more targets are reached
+  // once that happens, use the path for the top-to-bottom/left-to-right first target reached
+}
+
+function getAdjacents(pos) {
+  return [
+    { x: pos.x, y: pos.y - 1 },
+    { x: pos.x - 1, y: pos.y },
+    { x: pos.x + 1, y: pos.y },
+    { x: pos.x, y: pos.y + 1 }
+  ];
 }
 
 function printStatus(data) {
