@@ -132,7 +132,7 @@ function findEnemyToAttack(player, allPlayers) {
 }
 
 function findNextMovement(player, allPlayers, map) {
-  let targetKeys = {};
+  let targetKeys = {}; // "x,y" ==> { x, y } of alive enemy
   allPlayers
     .filter(p => p.alive && p.type !== player.type)
     .map(p => getAdjacents(p.pos).filter(pos => map[pos.y][pos.x] === FREE))
@@ -152,10 +152,10 @@ function findNextMovement(player, allPlayers, map) {
         let xy = `${adj.x},${adj.y}`;
         if (targetKeys[xy]) {
           // found a path to a target!
-          // add it so at the end of the iteration we chose the right one based on first step order
+          // add it so at the end of the iteration we chose the right one based on enemy order
           targetPaths.push([...path, adj, targetKeys[xy]]);
         } else if (!visited[xy] && map[adj.y][adj.x] === FREE) {
-          // we push the extended path for the next iteration
+          // new extended path to explore at next iteration
           newPaths.push([...path, adj]);
         }
         visited[xy] = true; // mark as visited so other paths ignore it
@@ -163,23 +163,22 @@ function findNextMovement(player, allPlayers, map) {
     });
 
     if (targetPaths.length > 0) {
-      // if we found multiple shortest paths, take the step to reach the first target according top-to-bottom/left-to-right order
+      // we got one or more paths reaching a target for the first time, here is where our search ends
+      // if we found multiple shortest paths, use the one that reaches the first target according top-to-bottom/left-to-right order
       targetPaths = targetPaths.sort((p1, p2) =>
         p1[p1.length - 1].y === p2[p2.length - 1].y
           ? p1[p1.length - 1].x - p2[p2.length - 1].x
           : p1[p1.length - 1].y - p2[p2.length - 1].y
       );
 
-      // we return the first step to take for the shortest path ([0] is the player current position)
+      // return the first step to take for the shortest path ([0] is the player current position)
       return targetPaths[0][1];
     }
 
+    // no paths to a target found yet, keep iterating with the paths after one more step
     paths = newPaths;
-    if (paths.length < 1) return null; // no reachables targets!
+    if (paths.length < 1) return null; // no reachables targets, search ends without a result
   }
-
-  // explode paths until one or more targets are reached
-  // once that happens, use the path for the top-to-bottom/left-to-right first target reached
 }
 
 function getAdjacents(pos) {
