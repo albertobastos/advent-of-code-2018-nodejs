@@ -59,7 +59,7 @@ function run(map, elfAttack = DEFAULT_ATTACK, abortIfElfDies = false) {
 
         let enemy = findEnemyToAttack(player, players);
         //let next = findNextStepToClosestEnemy(player, players, map);
-        let next = enemy ? null : findNextMovement(player, map);
+        let next = enemy ? null : findNextMovement(player, players, map);
         if (!enemy && next) {
           map[player.pos.y][player.pos.x] = FREE;
           player.pos.x = next.x;
@@ -136,7 +136,7 @@ function findEnemyToAttack(player, allPlayers) {
   );
 }
 
-function findNextMovement(player, map) {
+function findNextMovement(player, allPlayers, map) {
   let rivalType = player.type === ELF ? GOBLIN : ELF;
   let paths = [[{ x: player.pos.x, y: player.pos.y }]];
   let visited = {};
@@ -192,7 +192,7 @@ function printMap(map) {
 function printPlayers(players, onlyAlive) {
   players
     .filter(p => !onlyAlive || p.alive)
-    .forEach(p => console.log(p.type, p.pos.x, p.y, p.hp));
+    .forEach(p => console.log(p.type, p.pos.x, p.pos.y, p.hp));
 }
 
 programReadLine(rl);
