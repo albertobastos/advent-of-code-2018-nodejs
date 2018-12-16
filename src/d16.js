@@ -28,14 +28,21 @@ const OPERATIONS = [
 ];
 
 function programReadLine(rl) {
-  let INSTR_STACK = [];
+  // results
   let COUNT_PART1 = 0;
+  let STATE = [0, 0, 0, 0];
+
+  // sample parse and evaluation
   let before = (after = null); // before and after = [reg0, reg1, reg2, reg3]
   let instr = null; // instr = { opcode, A, B, C }
 
-  let regexBefore = /Before: \[(\d), (\d), (\d), (\d)\]/;
-  let regexAfter = /After:  \[(\d), (\d), (\d), (\d)\]/;
-  let regexInstr = /(\d) (\d) (\d) (\d)/;
+  let opcodes = {};
+  let part2started = false;
+
+  // regexes
+  let regexBefore = /Before: \[(\d+), (\d+), (\d+), (\d+)\]/;
+  let regexAfter = /After:  \[(\d+), (\d+), (\d+), (\d+)\]/;
+  let regexInstr = /(\d+) (\d+) (\d+) (\d+)/;
 
   rl.on("line", line => {
     if ((match = regexBefore.exec(line))) {
@@ -45,32 +52,44 @@ function programReadLine(rl) {
 
     if ((match = regexAfter.exec(line))) {
       after = [match[1], match[2], match[3], match[4]].map(Number);
-      if (getPossibleOperations(before, after, instr, 3).length >= 3) {
+      let possibleOperations = getPossibleOperations(before, after, instr);
+      if (possibleOperations.length >= 3) {
         COUNT_PART1++;
       }
+
+      // update opcode/possible operations pairs
+      opcodes[instr.opcode] = opcodes[instr.opcode] || [...OPERATIONS];
+      opcodes[instr.opcode] = opcodes[instr.opcode].filter(
+        op => possibleOperations.indexOf(op) > -1
+      );
+
       before = after = instr = null; // reset current parser
       return;
     }
 
     if ((match = regexInstr.exec(line))) {
-      let newInstr = {
+      instr = {
         opcode: match[1],
         A: Number(match[2]),
         B: Number(match[3]),
         C: Number(match[4])
       };
-      if (before) {
-        // if we have a "before-after" in course, the instr is part of a sample
-        instr = newInstr;
-      } else {
-        // otherwise, the instr is part of the stack
-        INSTR_STACK.push(newInstr);
+      if (!before) {
+        // we are not in a before-after sample, so we must execute the instruction against the current state
+        // if it is the first instruction to execute, we need some deduction first to know for sure what  operation matches each opcode
+        if (!part2started) {
+          opcodes = opcodesDeduction(opcodes);
+          part2started = true;
+        }
+        let op = opcodes[instr.opcode];
+        STATE = callOperation(STATE, op, instr.A, instr.B, instr.C);
       }
     }
   });
 
   rl.on("close", () => {
     console.log("Answer (part I):", COUNT_PART1);
+    console.log("Answer (part II):", STATE[0]);
     console.timeEnd("d16");
   });
 }
@@ -78,7 +97,8 @@ function programReadLine(rl) {
 function getPossibleOperations(before, after, { opcode, A, B, C }) {
   return OPERATIONS.filter(op => {
     let opAfter = callOperation(before, op, A, B, C);
-    return JSON.stringify(opAfter) == JSON.stringify(after);
+    let match = JSON.stringify(opAfter) == JSON.stringify(after);
+    return match;
   });
 }
 
@@ -156,6 +176,28 @@ function callOperation(state, operation, A, B, C) {
 
 function isReg(n) {
   return n >= 0 && n <= 3;
+}
+
+// Receives opcode-candidates pairs and returns a opcode-operation 1to1 match
+function opcodesDeduction(opcodes) {
+  while (Object.values(opcodes).find(l => l.length > 1)) {
+    Object.keys(opcodes)
+      .filter(opcode => opcodes[opcode].length === 1)
+      .forEach(opcode => {
+        let op = opcodes[opcode][0];
+        Object.keys(opcodes)
+          .filter(opcode2 => opcode2 !== opcode)
+          .forEach(opcode2 => {
+            opcodes[opcode2] = opcodes[opcode2].filter(op2 => op2 !== op);
+          });
+      });
+  }
+
+  Object.keys(opcodes).forEach(opcode => {
+    opcodes[opcode] = opcodes[opcode][0];
+  });
+
+  return opcodes;
 }
 
 programReadLine(rl);
