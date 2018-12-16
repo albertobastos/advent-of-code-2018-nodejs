@@ -1,13 +1,6 @@
 console.time("d16");
 const rl = require("./utils").getInputRL("d16");
 
-/**
- * Day 16.
- *
- * Part 1:
- * For each (before/instr/after), check how many opcodes match the behaviour. If the result is >= 3, add it to the counter.
- */
-
 const OPERATIONS = [
   "addr",
   "addi",
