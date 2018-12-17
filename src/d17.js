@@ -22,9 +22,9 @@ function programReadLine(rl) {
   });
 
   rl.on("close", () => {
-    let data = run(JSON.parse(JSON.stringify(CLAY_INPUT)));
-    console.log("Answer (part I):", data.part1);
-    console.log("Answer (part II):", data.part2);
+    let data = run(CLAY_INPUT);
+    console.log("Answer (part I):", data.part1); // expected: 33724
+    console.log("Answer (part II):", data.part2); // expected: ?
     console.timeEnd("d17");
   });
 }
@@ -46,7 +46,7 @@ function run(clayInput) {
 
   data.part1 = Object.values(data.filledByXY).filter(contents => contents === WATER || contents === WATER_FLOW).length;
 
-  //printData(data, 494, 507, 0, data.maxY);
+  //printData(data);
 
   return data;
 }
@@ -54,104 +54,96 @@ function run(clayInput) {
 function flowWater(data, cursor) {
   if (cursor.y >= data.maxY) return; // recursion end condition
 
+  //console.log("flow", cursor);
+
   let cursorDown = { ...cursor, y: cursor.y + 1 };
   let cursorLeft = { ...cursor, x: cursor.x - 1 };
   let cursorRight = { ...cursor, x: cursor.x + 1 };
 
-  //console.log("flow", cursor);
-
   if (isEmpty(data, cursorDown)) {
-    fill(data, cursorDown, WATER_FLOW);
+    // can keep flowing down, call recursively
+    if (cursorDown.y >= data.minY) fill(data, cursorDown, WATER_FLOW); // careful, answer expects only water from first row with clay!
     flowWater(data, cursorDown);
   }
 
   if (isStale(data, cursorDown) && isEmpty(data, cursorLeft)) {
+    // we have either stale water or clay below and free space to the left, water can flow that way
     fill(data, cursorLeft, WATER_FLOW);
     flowWater(data, cursorLeft);
   }
 
   if (isStale(data, cursorDown) && isEmpty(data, cursorRight)) {
+    // we have either stale water or clay below and free space to the right, water can flow that way
     fill(data, cursorRight, WATER_FLOW);
     flowWater(data, cursorRight);
   }
 
-  if (isBetweenWalls(data, cursor)) {
-    fillToWalls(data, cursor);
+  if (isStale(data, cursorDown) && hasWallLeft(data, cursor) && hasWallRight(data, cursor)) {
+    // we are either stale water or clay below and walls on both sides, water will fill that space
+    fillLeft(data, cursor, WATER);
+    fillRight(data, cursor, WATER);
     fill(data, cursor, WATER);
   }
 }
 
-function isBetweenWalls({ filledByXY }, cursor) {
-  // see if we reach a wall on each side
-  let wallLeft, wallRight;
-  let offset = -1;
-  searchLeft: while (true) {
-    let cursorLeft = { ...cursor, x: cursor.x + offset };
-    if (isEmpty({ filledByXY }, cursorLeft)) {
-      wallLeft = false;
-      break searchLeft;
-    }
-    if (isWall({ filledByXY }, cursorLeft)) {
-      wallLeft = true;
-      break searchLeft;
-    }
-    // water (either stale or flow), keep looking left
-    offset--;
-  }
-  offset = 1;
-  searchRight: while (true) {
-    let cursorRight = { ...cursor, x: cursor.x + offset };
-    if (isEmpty({ filledByXY }, cursorRight)) {
-      wallRight = false;
-      break searchRight;
-    }
-    if (isWall({ filledByXY }, cursorRight)) {
-      wallRight = true;
-      break searchRight;
-    }
-    // water (either stale or flow), keep looking right
-    offset++;
-  }
-  return wallLeft && wallRight;
+function isEmpty(data, cursor) {
+  return !getContents(data, cursor);
 }
 
-function fillToWalls({ filledByXY }, cursor) {
+function isStale(data, cursor) {
+  return [WATER, CLAY].indexOf(getContents(data, cursor)) > -1;
+}
+
+function isClay(data, cursor) {
+  return getContents(data, cursor) === CLAY;
+}
+
+function hasWallLeft(data, cursor) {
   let offset = -1;
-  fillLeft: while (true) {
-    let cursorLeft = { ...cursor, x: cursor.x + offset };
-    if (isWall({ filledByXY }, cursorLeft)) {
-      break fillLeft;
-    }
-    fill({ filledByXY }, cursorLeft, WATER);
+  while (true) {
+    let cursorOffset = { ...cursor, x: cursor.x + offset };
+    if (isEmpty(data, cursorOffset)) return false;
+    if (isClay(data, cursorOffset)) return true;
     offset--;
   }
-  offset = 1;
-  fillRight: while (true) {
-    let cursorRight = { ...cursor, x: cursor.x + offset };
-    if (isWall({ filledByXY }, cursorRight)) {
-      break fillRight;
-    }
-    fill({ filledByXY }, cursorRight, WATER);
+}
+
+function hasWallRight(data, cursor) {
+  let offset = 1;
+  while (true) {
+    let cursorOffset = { ...cursor, x: cursor.x + offset };
+    if (isEmpty(data, cursorOffset)) return false;
+    if (isClay(data, cursorOffset)) return true;
     offset++;
   }
 }
 
-function isEmpty({ filledByXY }, cursor) {
-  return !filledByXY[strXY(cursor)];
+function fillLeft(data, cursor, contents) {
+  let offset = -1;
+  while (true) {
+    let cursorOffset = { ...cursor, x: cursor.x + offset };
+    if (isClay(data, cursorOffset)) return;
+    fill(data, cursorOffset, contents);
+    offset--;
+  }
 }
 
-function isStale({ filledByXY }, cursor) {
-  let contents = filledByXY[strXY(cursor)];
-  return contents === WATER || contents === CLAY;
+function fillRight(data, cursor, contents) {
+  let offset = 1;
+  while (true) {
+    let cursorOffset = { ...cursor, x: cursor.x + offset };
+    if (isClay(data, cursorOffset)) return;
+    fill(data, cursorOffset, contents);
+    offset++;
+  }
 }
 
-function isWall({ filledByXY }, cursor) {
-  return filledByXY[strXY(cursor)] === CLAY;
+function getContents(data, cursor) {
+  return data.filledByXY[strXY(cursor)];
 }
 
-function fill({ filledByXY }, cursor, contents) {
-  //console.log("fill", cursor, contents);
-  filledByXY[strXY(cursor)] = contents;
+function fill(data, cursor, contents) {
+  data.filledByXY[strXY(cursor)] = contents;
 }
 
 function strXY({ x, y }) {
@@ -165,14 +157,34 @@ function parseLineContents(var1, start1, end1, var2, start2, end2) {
   return contents;
 }
 
-function printData(data, minX, maxX, minY, maxY) {
+function printData(data) {
+  let boundaries = Object.keys(data.filledByXY)
+    .map(xy => xy.split(",").map(Number))
+    .reduce(
+      (acc, [x, y]) => {
+        acc.minX = Math.min(acc.minX, x);
+        acc.maxX = Math.max(acc.maxX, x);
+        acc.minY = Math.min(acc.minY, y);
+        acc.maxY = Math.max(acc.maxY, y);
+        return acc;
+      },
+      {
+        minX: Infinity,
+        maxX: -Infinity,
+        minY: Infinity,
+        maxY: -Infinity
+      }
+    );
+
   let str = "";
-  for (let yi = minY; yi <= maxY; yi++) {
-    for (let xi = minX; xi <= maxX; xi++) {
-      str += data.filledByXY[strXY({ x: xi, y: yi })] || ".";
+  for (let yi = boundaries.minY; yi <= boundaries.maxY; yi++) {
+    for (let xi = boundaries.minX; xi <= boundaries.maxX; xi++) {
+      str += getContents(data, { x: xi, y: yi }) || ".";
     }
     str += "\n";
   }
+
+  console.log(boundaries);
   console.log(str);
 }
 
