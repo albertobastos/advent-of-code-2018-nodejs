@@ -23,8 +23,8 @@ function programReadLine(rl) {
 
   rl.on("close", () => {
     let data = run(CLAY_INPUT);
-    console.log("Answer (part I):", data.part1); // expected: 33724
-    console.log("Answer (part II):", data.part2); // expected: ?
+    console.log("Answer (part I):", data.part1);
+    console.log("Answer (part II):", data.part2);
     console.timeEnd("d17");
   });
 }
