@@ -45,6 +45,7 @@ function run(clayInput) {
   flowWater(data, { ...cursor });
 
   data.part1 = Object.values(data.filledByXY).filter(contents => contents === WATER || contents === WATER_FLOW).length;
+  data.part2 = Object.values(data.filledByXY).filter(contents => contents === WATER).length;
 
   //printData(data);
 
