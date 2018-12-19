@@ -1,0 +1,37 @@
+#ip 1
+addi 1 16 1 # 0: goto 17
+seti 1 8 2  # 1: r2 = 1
+seti 1 5 4  # 2: r4 = 1
+mulr 2 4 3  # 3: r3 = r2 * r4
+eqrr 3 5 3  # 4: r3 = r3 == r5
+addr 3 1 1  # 5: if(r3 == r5) goto 9
+addi 1 1 1  # 6: goto 8
+addr 2 0 0  # 7: r0 = r0 + r2
+addi 4 1 4  # 8: r4 = r4 + 1
+gtrr 4 5 3  # 9: r3 = r4 > r5
+addr 1 3 1  # 10: if(r4 > r5) goto 12
+seti 2 8 1  # 11: goto 3
+addi 2 1 2  # 12: r2 = r2 + 1
+gtrr 2 5 3  # 13: r3 = r2 > r5
+addr 3 1 1  # 14: if(r2 > r5) goto 16
+seti 1 8 1  # 15: goto 2
+mulr 1 1 1  # 16: goto 256 <-- exit!
+addi 5 2 5  # 17: r5 = r5 + 2
+mulr 5 5 5  # 18: r5 * r5 * r5
+mulr 1 5 5  # 19: r5 = r5 * 19
+muli 5 11 5 # 20: r5 = r5 * 11
+addi 3 5 3  # 21: r3 = r3 + 5
+mulr 3 1 3  # 22: r3 = r3 * 22
+addi 3 4 3  # 23: r3 = r3 + 4
+addr 5 3 5  # 24: r5 = r5 + r3
+addr 1 0 1  # 25: goto 25 + r0 + 1 (first r0 = 1, goto 27)
+seti 0 7 1  # 26: goto 1
+setr 1 1 3  # 27: r3 = 27
+mulr 3 1 3  # 28: r3 = r3 * 28
+addr 1 3 3  # 29: r3 = r3 + 29
+mulr 1 3 3  # 30: r3 = r3 * 30
+muli 3 14 3 # 31: r3 = r3 * 14
+mulr 3 1 3  # 32: r3 = r3 * 32
+addr 5 3 5  # 33: r5 = r3 + r5
+seti 0 9 0  # 34: r0 = 0
+seti 0 0 1  # 35: goto 1
