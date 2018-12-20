@@ -19,6 +19,7 @@ function programReadLine(rl) {
 function run(path) {
   let current = newChild();
   let maxDoors = -Infinity;
+  let over1000doors = 0;
 
   path.forEach((char, idx) => {
     switch (char) {
@@ -46,13 +47,14 @@ function run(path) {
         // one more step on the current path
         current.doors++;
         maxDoors = Math.max(maxDoors, current.doors);
+        if (current.doors >= 1000) over1000doors++;
         break;
     }
   });
 
   return {
     part1: maxDoors,
-    part2: undefined
+    part2: over1000doors
   };
 }
 
