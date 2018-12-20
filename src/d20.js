@@ -1,6 +1,13 @@
 console.time("d20");
 const rl = require("./utils").getInputRL("d20");
 
+const STEPS = {
+  N: { dx: +0, dy: -1 },
+  S: { dx: +0, dy: +1 },
+  W: { dx: -1, dy: +0 },
+  E: { dx: +1, dy: +0 }
+};
+
 let FULL_PATH;
 
 function programReadLine(rl) {
@@ -19,6 +26,7 @@ function programReadLine(rl) {
 function run(path) {
   let current = newChild();
   let maxDoors = -Infinity;
+  let rooms = {}; // "x,y" -> minimum doors required
   let over1000doors = 0;
 
   path.forEach((char, idx) => {
@@ -45,12 +53,20 @@ function run(path) {
         break;
       default:
         // one more step on the current path
+        let step = STEPS[char];
+        current.x += step.dx;
+        current.y += step.dy;
         current.doors++;
         maxDoors = Math.max(maxDoors, current.doors);
+        let xy = `${current.x},${current.y}`;
+        rooms[xy] = rooms[xy] || current.doors;
+        rooms[xy] = Math.min(rooms[xy], current.doors);
         if (current.doors >= 1000) over1000doors++;
         break;
     }
   });
+
+  over1000doors = Object.keys(rooms).filter(xy => rooms[xy] >= 1000).length;
 
   return {
     part1: maxDoors,
@@ -60,6 +76,8 @@ function run(path) {
 
 function newChild(parent) {
   let node = {
+    x: parent ? parent.x : 0,
+    y: parent ? parent.y : 0,
     doors: parent ? parent.doors : 0,
     parent: parent,
     branches: []
