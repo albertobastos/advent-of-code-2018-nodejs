@@ -1,5 +1,5 @@
 console.time("d20");
-const rl = require("./utils").getInputRL("d20ex");
+const rl = require("./utils").getInputRL("d20");
 
 let FULL_PATH;
 
@@ -17,47 +17,55 @@ function programReadLine(rl) {
 }
 
 function run(path) {
-  let current = { count: 0, alternatives: [] };
-  let over1000rooms = 0;
+  let current = newChild();
+  let maxDoors = -Infinity;
 
   path.forEach((char, idx) => {
     switch (char) {
       case "(":
         // open alternatives
-        newCurrent = { count: 0, parent: current, alternatives: [] };
-        newCurrent.parent.alternatives.push(newCurrent);
+        newCurrent = newChild(current);
         current = newCurrent;
         break;
       case ")":
-        // choose alternative with less steps
+        // choose branch with less steps
         current = current.parent;
-        if (!current.alternatives.find(x => x.count === 0)) {
-          // no empty alternative, we cannot skip the branches
-          current.count += Math.max(...current.alternatives.map(x => x.count));
+        if (!current.branches.find(x => x.doors === current.doors)) {
+          // no empty branch, we cannot skip them
+          current.doors = Math.min(...current.branches.map(x => x.doors));
         }
-        // reset the alternatives list in case another one comes up at the same level
-        current.alternatives = [];
+        // reset the branches list in case a new branch group comes up at the same level
+        current.branches = [];
         break;
       case "|":
-        // add new alternative
-        newCurrent = { count: 0, parent: current.parent, alternatives: [] };
-        newCurrent.parent.alternatives.push(newCurrent);
+        // add new branch
+        newCurrent = newChild(current.parent);
         current = newCurrent;
         break;
       default:
         // one more step on the current path
-        current.count++;
+        current.doors++;
+        maxDoors = Math.max(maxDoors, current.doors);
         break;
-    }
-    if (isNaN(current.count)) {
-      throw new Error();
     }
   });
 
   return {
-    part1: current.count,
-    part2: over1000rooms
+    part1: maxDoors,
+    part2: undefined
   };
+}
+
+function newChild(parent) {
+  let node = {
+    doors: parent ? parent.doors : 0,
+    parent: parent,
+    branches: []
+  };
+
+  if (parent) parent.branches.push(node);
+
+  return node;
 }
 
 programReadLine(rl);
