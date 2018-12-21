@@ -1,7 +1,8 @@
 console.time("d21");
 const rl = require("./utils").getInputRL("d21");
 
-const PART1_TARGET_IP = 28;
+const TARGET_IP = 28; // check in your input where R0 gets involved in a jump condition!
+
 const OPERATIONS = {
   addr: (state, op1, op2, op3) => (state[op3] = state[op1] + state[op2]),
   addi: (state, op1, op2, op3) => (state[op3] = state[op1] + op2),
@@ -42,44 +43,61 @@ function programReadLine(rl) {
   });
 
   rl.on("close", () => {
-    runPart1(PROGRAM);
+    let data = run(PROGRAM);
+    console.log("Answer (Part 1):", data.part1);
+    console.log("Answer (Part 2):", data.part2);
     console.timeEnd("d19");
   });
 }
 
-function runPart1(program, initialState = [0, 0, 0, 0, 0, 0], initialIp = 0) {
-  let part1resolved = false;
+function run(program, initialState = [0, 0, 0, 0, 0, 0], initialIp = 0) {
+  let targetRegisterHistory = [];
 
   let data = {
     state: [...initialState],
     ip: initialIp,
-    count: 0
+    count: 0,
+    part1: null,
+    part2: null
   };
 
-  while (data.ip < program.length) {
+  runLoop: while (data.ip < program.length) {
     data.state[IP_REG] = data.ip;
-    let ipBefore = data.ip;
-    let stateBefore = [...data.state];
 
     // execute instruction
     let instr = program[data.ip];
 
     // The only instruction that uses R0 is #28 (eqrr 4 0 2)
     // if R0 and R4 are equals, executes a "goto" that goes out of the program stack
-    // So we just need to know R4 value the first time we evaluate the condition and that
-    // will be our desired initial value for R0.
-    if (data.ip === PART1_TARGET_IP && !part1resolved) {
-      console.log("Answer (Part 1):", data.state[instr.op1]);
-      part1resolved = true;
+    // For Part 1, we need to know the value at R4 the first time the condition is evaluated.
+    // That is the value we will put initially at R0 to halt as soon as possible
+    // For Part 2, we look for a repetition pattern at R4 and check the last original value
+    // before it starts repeating.
+    if (data.ip === PART1_TARGET_IP) {
+      targetInstructionIterations++;
+      let targetRegisterValue = data.state[instr.op1];
+
+      if (targetRegisterHistory.indexOf(targetRegisterValue) > -1) {
+        // first repetition! we want the value before that iteration
+        break runLoop;
+      }
+
+      targetRegisterHistory.push(targetRegisterValue);
     }
 
     OPERATIONS[instr.opname](data.state, instr.op1, instr.op2, instr.op3); // exec instruction
+
     // get new instruction pointer
     data.ip = data.state[IP_REG];
     // increment instruction pointer
     data.ip++;
     data.count++;
   }
+
+  // the first value at the target register is the answer for Part 1
+  // the last non-repeated value at the target register is the answer for Part 2
+  data.part1 = targetRegisterHistory[0];
+  data.part2 = targetRegisterHistory[targetRegisterHistory.length - 1];
 
   return data;
 }
