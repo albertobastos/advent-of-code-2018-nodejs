@@ -46,7 +46,7 @@ function programReadLine(rl) {
     let data = run(PROGRAM);
     console.log("Answer (Part 1):", data.part1);
     console.log("Answer (Part 2):", data.part2);
-    console.timeEnd("d19");
+    console.timeEnd("d21");
   });
 }
 
