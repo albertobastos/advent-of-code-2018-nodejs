@@ -67,14 +67,13 @@ function run(program, initialState = [0, 0, 0, 0, 0, 0], initialIp = 0) {
     // execute instruction
     let instr = program[data.ip];
 
-    // The only instruction that uses R0 is #28 (eqrr 4 0 2)
+    // The only instruction that uses R0 is #28 for me (eqrr 4 0 2)
     // if R0 and R4 are equals, executes a "goto" that goes out of the program stack
     // For Part 1, we need to know the value at R4 the first time the condition is evaluated.
     // That is the value we will put initially at R0 to halt as soon as possible
     // For Part 2, we look for a repetition pattern at R4 and check the last original value
     // before it starts repeating.
-    if (data.ip === PART1_TARGET_IP) {
-      targetInstructionIterations++;
+    if (data.ip === TARGET_IP) {
       let targetRegisterValue = data.state[instr.op1];
 
       if (targetRegisterHistory.indexOf(targetRegisterValue) > -1) {
